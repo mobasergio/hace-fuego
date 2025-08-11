@@ -1,16 +1,147 @@
 ---
-
+import Layout from "../layouts/Layout.astro";
 ---
+<Layout title="¿Hace fuego?">
+	<canvas id="embers"></canvas>
+	<main>
+		<h1>Hace fuego</h1>
+		<h2>Ten cuidaito no vayas a la Peña</h2>
+	</main>
+</Layout>
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<style>
+  @media (min-width: 525px) {
+    main {
+      width: 100%;
+    }
+  }
+
+  main {
+    padding: 1rem;
+    line-height: 1;
+    text-align: center;
+    background-color: white;
+    border-radius: 0.5rem;
+    max-width: 28rem;
+    width: 85%;
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 1;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  h1 {
+    font-size: 4.5rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+	color: #FF6B00;
+    margin: 1.5rem 0;
+}
+
+h2 {
+	font-size: 1.5rem;
+    line-height: 1.75rem;
+    font-weight: 700;
+	color: #FF6B00;
+  }
+
+</style>
+
+<script>
+(() => {
+  const canvas = document.getElementById('embers');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  const CONFIG = {
+    emberCount: 150,
+    emberSize: [2, 8],
+    emberSpeed: [-0.3, 0.3],   // horizontal drift
+    emberRise: [-0.5, -1.8],   // upward speed
+    emberLife: [2, 6],         // seconds
+    colors: [
+      'rgba(255, 200, 100, 1)',
+      'rgba(255, 120, 40, 0.9)',
+      'rgba(150, 50, 20, 0.5)'
+    ]
+  };
+
+  let DPR = Math.min(window.devicePixelRatio || 1, 2);
+  function resize() {
+    canvas.width = innerWidth * DPR;
+    canvas.height = innerHeight * DPR;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  class Ember {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * innerWidth;
+      this.y = Math.random() * innerHeight;
+      this.size = rand(CONFIG.emberSize[0], CONFIG.emberSize[1]);
+      this.vx = rand(CONFIG.emberSpeed[0], CONFIG.emberSpeed[1]);
+      this.vy = rand(CONFIG.emberRise[0], CONFIG.emberRise[1]);
+      this.life = rand(CONFIG.emberLife[0], CONFIG.emberLife[1]);
+      this.age = 0;
+      this.rotation = Math.random() * Math.PI * 2;
+      this.rotationSpeed = rand(-0.5, 0.5);
+      this.flickerSpeed = rand(2, 6);
+    }
+    update(dt) {
+      this.age += dt;
+      if (this.age > this.life) this.reset();
+      this.x += this.vx * dt * 60;
+      this.y += this.vy * dt * 60;
+      if (this.x < -10) this.x = innerWidth + 10;
+      if (this.x > innerWidth + 10) this.x = -10;
+      if (this.y < -10) this.y = innerHeight + 10;
+      this.rotation += this.rotationSpeed * dt;
+    }
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+      let flicker = 0.85 + Math.sin(this.age * this.flickerSpeed) * 0.15;
+      let s = this.size * flicker;
+      let gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 2);
+      CONFIG.colors.forEach((c, i) => gradient.addColorStop(i / (CONFIG.colors.length - 1), c));
+      ctx.fillStyle = gradient;
+
+      // Irregular ember shape
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        let angle = (i / 6) * Math.PI * 2;
+        let radius = s * (0.8 + Math.random() * 0.4);
+        ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  let embers = Array.from({ length: CONFIG.emberCount }, () => new Ember());
+  let last = performance.now();
+
+  function loop(now) {
+    let dt = (now - last) / 1000;
+    last = now;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fillRect(0, 0, innerWidth, innerHeight);
+    ctx.globalCompositeOperation = 'lighter';
+    embers.forEach(e => { e.update(dt); e.draw(ctx); });
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
